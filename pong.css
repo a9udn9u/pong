@@ -1,0 +1,67 @@
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  background-color: darkslategrey;
+  margin: 0;
+  padding: 0;
+}
+
+#controls {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-240px - 200%));
+}
+
+#table {
+  position: relative;
+  width: 640px;
+  height: 480px;
+  border: solid 0 cornflowerblue;
+  border-width: 10px 0;
+  background-color: lightblue;
+}
+
+#table > * {
+  position: absolute;
+}
+
+.paddle {
+  height: 100px;
+  width: 15px;
+  /* Translate Y so code and position paddles by their center coordinates */
+  transform: translateY(-50%);
+  top: 50%;
+}
+
+#p1 {
+  left: 0;
+  background-color: darkgoldenrod;
+}
+
+#p2 {
+  right: 0;
+  background-color: mediumslateblue;
+}
+
+#ball {
+  width: 25px;
+  height: 25px;
+  background-color: white;
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  /* Translate coordinates so code and position the ball by its center */
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+#net {
+  border: dashed 0 gray;
+  border-left-width: 5px;
+  height: 100%;
+  left: calc(50% - 5px / 2);
+}
