@@ -11,6 +11,7 @@ const normalizeAngle = radian => {
 const flipAngleX = (radian, amplifier) => {
   // console.log(radian, amplifier);
   // Amplify the bounce angle when the ball touches the paddle off center
+  // TODO: Needs improvement, doesn't work as intended yet
   return normalizeAngle(PI - radian + PI/4 * amplifier);
 }
 
@@ -34,7 +35,9 @@ document.addEventListener('DOMContentLoaded', _ => {
     table: document.getElementById('table'),
     ball: document.getElementById('ball'),
     p1: document.getElementById('p1'),
+    p1Score: document.getElementById('p1-score'),
     p2: document.getElementById('p2'),
+    p2Score: document.getElementById('p2-score'),
   };
 
   // Sound effects
@@ -65,6 +68,10 @@ document.addEventListener('DOMContentLoaded', _ => {
     // the lower right corner, the computer paddle can save it by moving at
     // this speed, starting from the center right edge.
     maxP2Speed: 4.723,
+    scores: {
+      p1: 0,
+      p2: 0,
+    }
   };
 
   // Mouse cursor properties
@@ -73,10 +80,19 @@ document.addEventListener('DOMContentLoaded', _ => {
     y: 0,
   };
 
+  // Table properties
+  const table = {
+    yMargin: undefined
+  };
+  Object.defineProperties(table, {
+    height: { configurable: false, writable: false, value: dom.table.clientHeight },
+    width: { configurable: false, writable: false, value: dom.table.clientWidth },
+  });
+
   // Paddle properties
   const paddle = {
-    p1Y: parseFloat(getComputedStyle(dom.p1).top),
-    p2Y: parseFloat(getComputedStyle(dom.p2).top),
+    p1Y: table.height / 2,
+    p2Y: table.height / 2,
     // Paddles follow mouse cursor, but mouse cursor coordinates are relative
     // to the body, this offset helps convert cursor Y to paddle Y which is
     // relative to the table
@@ -89,20 +105,11 @@ document.addEventListener('DOMContentLoaded', _ => {
     width: { configurable: false, writable: false, value: dom.p1.offsetWidth },
   });
 
-  // Table properties
-  const table = {
-    yMargin: undefined
-  };
-  Object.defineProperties(table, {
-    height: { configurable: false, writable: false, value: dom.table.clientHeight },
-    width: { configurable: false, writable: false, value: dom.table.clientWidth },
-  });
-
   // Ball properties
   const ball = {
     // Coordinate within the table
-    x: parseFloat(getComputedStyle(dom.ball).left),
-    y: parseFloat(getComputedStyle(dom.ball).top),
+    x: table.width / 2,
+    y: table.height / 2,
     radian: undefined,
   };
   Object.defineProperty(ball, 'radius', { configurable: false, writable: false, value: dom.ball.offsetHeight / 2 });
@@ -170,27 +177,51 @@ document.addEventListener('DOMContentLoaded', _ => {
     dom.p2.style.top = `${paddle.p2Y}px`;
   }
 
-  // Calculate the distance from paddle center to the ball's edge.
-  //
-  // If the ball is not at a horizontal edge, returns `null`
-  //
-  // If the ball touches the paddle, returns [-1, 1], where:
-  // * 0 means the ball's center aligns perfectly with the paddle's center
-  // * -1 means the ball's bottom edge touches the paddle's top edge
-  // * 1 means the ball's top edge touches the paddle's bottom edge
-  //
-  // If the ball doesn't touch the paddle, returns value with abs > 1
+  /**
+   * Calculate the distance from paddle center to the ball's edge.
+   *
+   * If the ball touches the paddle, returns [player, distance], where
+   * `player` is either p1 or p2, whichever's side has the ball, and
+   * `distance` is a number:
+   *   0, if the ball center aligns with the paddle center
+   *   -1, if the ball's bottom edge touches the paddle's top edge
+   *   1, if the ball's top edge touches the paddle's bottom edge
+   * If the ball is about to fell off the table, abs(`distance`) > 1
+   *
+   * If the ball is not at a horizontal edge, returns []
+   * @returns {[string, number] | []}
+   */
   const paddleBallTouchDistance = () => {
-    const yToCheck = ball.x <= ball.minX ? paddle.p1Y : (ball.x >= ball.maxX ? paddle.p2Y : null);
-    if (yToCheck !== null) {
-      return (ball.y - yToCheck) / (paddle.height / 2 + ball.radius);
+    const player = ball.x <= ball.minX ? 'p1' : (ball.x >= ball.maxX ? 'p2' : null);
+    if (player !== null) {
+      const y = player === 'p1' ? paddle.p1Y : paddle.p2Y;
+      return [player, (ball.y - y) / (paddle.height / 2 + ball.radius)];
     }
-    return null;
+    return [];
   }
 
-  const toggleGame = playButton => {
+  const updateScore = losingPlayer => {
+    if (losingPlayer === 'p1') {
+      dom.p2Score.textContent = `${++game.scores.p2}`;
+    } else {
+      dom.p1Score.textContent = `${++game.scores.p1}`;
+    }
+  }
+
+  const toggleGame = () => {
+    if (game.on) {
+      // Stop the game
+      dom.play.textContent = 'Play';
+    } else {
+      // Start the game
+      dom.play.textContent = 'Stop';
+      ball.x = table.width / 2;
+      ball.y = table.height / 2;
+      ball.radian = undefined
+    }
+    // Toggle the flag at last to make sure all the preparations are done
+    // before the game status is actually updated
     game.on = !game.on;
-    playButton.textContent = game.on ? 'Stop' : 'Play';
   }
 
   const paint = ts => {
@@ -200,11 +231,12 @@ document.addEventListener('DOMContentLoaded', _ => {
       moveP1();
       moveP2();
 
-      const pbDistance = paddleBallTouchDistance();
-      if (pbDistance !== null) {
+      const [player, pbDistance] = paddleBallTouchDistance();
+      if (player) {
         if (Math.abs(pbDistance) > 1) {
           // Ball is off table
-          toggleGame(dom.play);
+          toggleGame();
+          updateScore(player);
           sound.play('fall');
         } else {
           // Ball hits a paddle
@@ -219,6 +251,6 @@ document.addEventListener('DOMContentLoaded', _ => {
   window.requestAnimationFrame(paint);
 
   dom.play.addEventListener('click', () => {
-    toggleGame(dom.play);
+    toggleGame();
   }, false);
 }, false);
